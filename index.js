@@ -6,7 +6,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 app.use(cors());
@@ -41,6 +41,27 @@ async function startServer() {
         res.send(result);
       } catch (err) {
         console.error("Error fetching ideas:", err);
+        res.status(500).send({ error: "Failed to fetch data" });
+      }
+    });
+
+    // Trending data showing route
+    app.get('/trending', async(req, res) => {
+       try {
+        const result = await ideasCollection.find().limit(6).toArray();
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch data" });
+      }
+    })
+
+    app.get("/ideasAll/:ideasId", async (req, res) => {
+      try {
+        const {ideasId} = req.params;
+        const query = {_id: new ObjectId(ideasId)}
+        const result = await ideasCollection.findOne(query);
+        res.send(result);
+      } catch (err) {
         res.status(500).send({ error: "Failed to fetch data" });
       }
     });
