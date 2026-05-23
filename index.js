@@ -137,9 +137,20 @@ app.get("/ideas/:ideasId", async (req, res) => {
 });
 
 // ==================== COMMENTS COLLECTION CRUD ====================
+
+
+// POST: Add a comment
+app.post("/comments", async (req, res) => {
+  const comment = req.body;
+
+  const result = await commentsCollection.insertOne(comment);
+  res.send(result);
+});
+
 // get
-app.get("/comments", async (req, res) => {
-  const ideaCardId = req.query;
+app.get("/comments/:ideaCardId", async (req, res) => {
+  const {ideaCardId} = req.query;
+  console.log(ideaCardId)
 
   let query = {};
 
@@ -148,14 +159,6 @@ app.get("/comments", async (req, res) => {
   }
 
   const result = await commentsCollection.find(query).toArray();
-  res.send(result);
-});
-
-// POST: Add a comment
-app.post("/comments", async (req, res) => {
-  const comment = req.body;
-
-  const result = await commentsCollection.insertOne(comment);
   res.send(result);
 });
 
