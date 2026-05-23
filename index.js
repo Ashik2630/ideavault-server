@@ -58,108 +58,113 @@ const verifyToken = async (req, res, next) => {
 //     await client.connect();
 //     console.log("MongoDB connected successfully!");
 
-    const db = client.db("ideaVaultDB9");
-    const ideasCollection = db.collection("ideasAll");
-    const commentsCollection = db.collection("comments");
+const db = client.db("ideaVaultDB9");
+const ideasCollection = db.collection("ideasAll");
+const commentsCollection = db.collection("comments");
 
-    // 2. Define your database routes *after* a successful connection
-    app.get("/ideasAll", async (req, res) => {
-      try {
-        const { search } = req.query;
-        console.log("Search term received:", search);
+// 2. Define your database routes *after* a successful connection
+app.get("/ideasAll", async (req, res) => {
+  try {
+    const { search } = req.query;
+    console.log("Search term received:", search);
 
-        let query = {};
+    let query = {};
 
-        if (search) {
-          query.ideaTitle = { $regex: search, $options: "i" };
-        }
+    if (search) {
+      query.ideaTitle = { $regex: search, $options: "i" };
+    }
 
-        const result = await ideasCollection.find(query).toArray();
-        res.send(result);
-      } catch (err) {
-        console.error("Error fetching ideas:", err);
-        res.status(500).send({ error: "Failed to fetch data" });
-      }
-    });
+    const result = await ideasCollection.find(query).toArray();
+    res.send(result);
+  } catch (err) {
+    console.error("Error fetching ideas:", err);
+    res.status(500).send({ error: "Failed to fetch data" });
+  }
+});
 
-    // post data
-    app.post("/ideasAll", async (req, res) => {
-      const ideasData = await req.body;
-      const result = await ideasCollection.insertOne(ideasData);
-      res.send(result);
-    });
+// post data
+app.post("/ideasAll", async (req, res) => {
+  const ideasData = await req.body;
+  const result = await ideasCollection.insertOne(ideasData);
+  res.send(result);
+});
 
-    app.get("/ideasAll/:userId", async (req, res) => {
-      const { userId } = req.params;
-      const result = await ideasCollection.find({ userId }).toArray();
+app.get("/ideasAll/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const result = await ideasCollection.find({ userId }).toArray();
 
-      res.send(result);
-    });
+  res.send(result);
+});
 
-    // Edit myideas Page
-    app.patch("/ideasAll/:id", async (req, res) => {
-      const { id } = req.params;
-      const updatedData = req.body;
-      const result = await ideasCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedData },
-      );
+// Edit myideas Page
+app.patch("/ideasAll/:id", async (req, res) => {
+  const { id } = req.params;
+  const updatedData = req.body;
+  const result = await ideasCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: updatedData },
+  );
 
-      res.send(result);
-    });
+  res.send(result);
+});
 
-    // delete myIdea page
-    app.delete("/ideasAll/:id", async (req, res) => {
-      const { id } = req.params;
-      const result = await ideasCollection.deleteOne({ _id: new ObjectId(id) });
-      result.send(result);
-    });
+// delete myIdea page
+app.delete("/ideasAll/:id", async (req, res) => {
+  const { id } = req.params;
+  const result = await ideasCollection.deleteOne({ _id: new ObjectId(id) });
+  result.send(result);
+});
 
-    // Trending data showing route
-    app.get("/trending", async (req, res) => {
-      try {
-        const result = await ideasCollection.find().limit(6).toArray();
-        res.send(result);
-      } catch (err) {
-        res.status(500).send({ error: "Failed to fetch data" });
-      }
-    });
+// Trending data showing route
+app.get("/trending", async (req, res) => {
+  try {
+    const result = await ideasCollection.find().limit(6).toArray();
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ error: "Failed to fetch data" });
+  }
+});
 
-    app.get("/ideas/:ideasId", async (req, res) => {
-      try {
-        const { ideasId } = req.params;
-        const query = { _id: new ObjectId(ideasId) };
-        const result = await ideasCollection.findOne(query);
-        res.send(result);
-      } catch (err) {
-        res.status(500).send({ error: "Failed to fetch data" });
-      }
-    });
+app.get("/ideas/:ideasId", async (req, res) => {
+  try {
+    const { ideasId } = req.params;
+    const query = { _id: new ObjectId(ideasId) };
+    const result = await ideasCollection.findOne(query);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ error: "Failed to fetch data" });
+  }
+});
 
-    // ==================== COMMENTS COLLECTION CRUD ====================
-    // get
-    app.get("/comments", async (req, res) => {
+// ==================== COMMENTS COLLECTION CRUD ====================
+// get
+app.get("/comments", async (req, res) => {
+  const ideaCardId = req.query;
 
-      const result = await commentsCollection.find().toArray();
-      res.send(result);
-    });
+  let query = {};
 
-    // POST: Add a comment
-    app.post("/comments", async (req, res) => {
-      const comment = req.body;
+  if (ideaCardId) {
+    query = { ideaCardId };
+  }
 
-      const result = await commentsCollection.insertOne(comment);
-      res.send(result);
-    });
+  const result = await commentsCollection.find(query).toArray();
+  res.send(result);
+});
 
-  // Base routes
-  app.get("/", (req, res) => {
-    res.send("API is working");
-  });
+// POST: Add a comment
+app.post("/comments", async (req, res) => {
+  const comment = req.body;
 
-  // 3. Start listening inside or at the end of the initialization function
-  app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-  });
+  const result = await commentsCollection.insertOne(comment);
+  res.send(result);
+});
 
+// Base routes
+app.get("/", (req, res) => {
+  res.send("API is working");
+});
 
+// 3. Start listening inside or at the end of the initialization function
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
