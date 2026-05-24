@@ -10,12 +10,12 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 const port = process.env.PORT || 8080;
 
-// TODO: Replace this password since it was exposed, and ideally move this whole string to your .env file!
 const uri =
   process.env.MONGODB_URL ||
   "mongodb+srv://ideaVaultDB:SWSOPchlXH8kv87U@cluster0.gwtjk.mongodb.net/?appName=Cluster0";
@@ -28,146 +28,304 @@ const client = new MongoClient(uri, {
   },
 });
 
+// ================= VERIFY TOKEN =================
+
 const verifyToken = async (req, res, next) => {
   const { authorization } = req.headers;
+
   const token = authorization?.split(" ")[1];
-  console.log(token);
+
   if (!token) {
-    return res
-      .status(401)
-      .send({ message: "Unauthorized access: Missing token" });
+    return res.status(401).send({
+      message: "Unauthorized access: Missing token",
+    });
   }
+
   try {
     const JWKS = createRemoteJWKSet(
       new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
     );
+
     const { payload } = await jwtVerify(token, JWKS);
+
     req.user = payload;
+
     next();
   } catch (error) {
     console.error("Token validation failed:", error);
-    return res
-      .status(401)
-      .send({ message: "Unauthorized access: Missing token" });
+
+    return res.status(401).send({
+      message: "Unauthorized access",
+    });
   }
 };
 
-// async function startServer() {
-//   try {
-//     // 1. Try to connect to MongoDB
-//     await client.connect();
-//     console.log("MongoDB connected successfully!");
+// ================= START SERVER =================
 
-const db = client.db("ideaVaultDB9");
-const ideasCollection = db.collection("ideasAll");
-const commentsCollection = db.collection("comments");
-
-// 2. Define your database routes *after* a successful connection
-app.get("/ideasAll", async (req, res) => {
+async function startServer() {
   try {
-    const { search } = req.query;
-    console.log("Search term received:", search);
+    // CONNECT MONGODB
+    await client.connect();
 
-    let query = {};
+    console.log("MongoDB connected successfully!");
 
-    if (search) {
-      query.ideaTitle = { $regex: search, $options: "i" };
-    }
+    const db = client.db("ideaVaultDB9");
 
-    const result = await ideasCollection.find(query).toArray();
-    res.send(result);
-  } catch (err) {
-    console.error("Error fetching ideas:", err);
-    res.status(500).send({ error: "Failed to fetch data" });
+    const ideasCollection = db.collection("ideasAll");
+    const commentsCollection = db.collection("comments");
+    const usersCollection = db.collection("users");
+
+    // ================= ROUTES =================
+
+    app.get("/", (req, res) => {
+      res.send("API is working");
+    });
+
+    // ================= GET IDEAS =================
+
+    app.get("/ideasAll", async (req, res) => {
+      try {
+        const { search, category } = req.query;
+        console.log(search, category, "search and category");
+
+        let query = {};
+
+        if (search) {
+          query.ideaTitle = {
+            $regex: search,
+            $options: "i",
+          };
+        }
+        
+
+        if (category) {
+          query.category = category;
+        }
+
+
+        console.log(query, "query");
+        const result = await ideasCollection.find(query).toArray();
+        res.json(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Failed to fetch ideas",
+        });
+      }
+    });
+
+    // ================= POST IDEA =================
+
+    app.post("/ideasAll", async (req, res) => {
+      try {
+        const ideasData = req.body;
+
+        const result = await ideasCollection.insertOne(ideasData);
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to add idea",
+        });
+      }
+    });
+
+    // ================= GET USER IDEAS =================
+
+    app.get("/ideasAll/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        const result = await ideasCollection.find({ userId }).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // ================= UPDATE IDEA =================
+
+    app.patch("/ideasAll/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const updatedData = req.body;
+
+        const result = await ideasCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedData },
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // ================= DELETE IDEA =================
+
+    app.delete("/ideasAll/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await ideasCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // ================= TRENDING =================
+
+    app.get("/trending", async (req, res) => {
+      try {
+        const result = await ideasCollection.find().limit(6).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to fetch trending ideas",
+        });
+      }
+    });
+
+    // ================= SINGLE IDEA =================
+
+    app.get("/ideas/:ideasId", async (req, res) => {
+      try {
+        const { ideasId } = req.params;
+
+        const result = await ideasCollection.findOne({
+          _id: new ObjectId(ideasId),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to fetch single idea",
+        });
+      }
+    });
+
+    // ==================================================
+    // ================= COMMENTS CRUD ==================
+    // ==================================================
+
+    // Get All comments
+    app.get("/comments", async (req, res) => {
+      const result = await commentsCollection.find().toArray();
+      res.send(result);
+    });
+
+    // GET COMMENTS BY ideaCardId
+    app.get("/comments/:ideaCardId", async (req, res) => {
+      try {
+        const { ideaCardId } = req.params;
+
+        const result = await commentsCollection
+          .find({ ideaId: ideaCardId })
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to fetch comments",
+        });
+      }
+    });
+
+    // POST COMMENT
+    app.post("/comments", async (req, res) => {
+      try {
+        const comment = req.body;
+
+        const result = await commentsCollection.insertOne(comment);
+
+        res.status(201).json({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to add comment",
+        });
+      }
+    });
+
+    // Update comment
+
+    app.patch("/comments/:id", async (req, res) => {
+      const { id } = req.params;
+      const updatedComment = req.body;
+      const result = await commentsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedComment },
+      );
+      res.send(result);
+    });
+    // DELETE COMMENT
+
+    app.delete("/comments/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({
+            error: "Invalid comment ID",
+          });
+        }
+
+        const result = await commentsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          error: "Failed to delete comment",
+        });
+      }
+    });
+
+    // ================= Update Profile section =================
+    app.patch("/users/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const updatedProfile = req.body;
+
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: updatedProfile },
+      );
+
+      res.send(result);
+    });
+
+    // ================= START SERVER =================
+
+    app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+    });
+  } catch (error) {
+    console.log(error);
   }
-});
+}
 
-// post data
-app.post("/ideasAll", async (req, res) => {
-  const ideasData = await req.body;
-  const result = await ideasCollection.insertOne(ideasData);
-  res.send(result);
-});
+// ================= CALL SERVER =================
 
-app.get("/ideasAll/:userId", async (req, res) => {
-  const { userId } = req.params;
-  const result = await ideasCollection.find({ userId }).toArray();
-
-  res.send(result);
-});
-
-// Edit myideas Page
-app.patch("/ideasAll/:id", async (req, res) => {
-  const { id } = req.params;
-  const updatedData = req.body;
-  const result = await ideasCollection.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: updatedData },
-  );
-
-  res.send(result);
-});
-
-// delete myIdea page
-app.delete("/ideasAll/:id", async (req, res) => {
-  const { id } = req.params;
-  const result = await ideasCollection.deleteOne({ _id: new ObjectId(id) });
-  result.send(result);
-});
-
-// Trending data showing route
-app.get("/trending", async (req, res) => {
-  try {
-    const result = await ideasCollection.find().limit(6).toArray();
-    res.send(result);
-  } catch (err) {
-    res.status(500).send({ error: "Failed to fetch data" });
-  }
-});
-
-app.get("/ideas/:ideasId", async (req, res) => {
-  try {
-    const { ideasId } = req.params;
-    const query = { _id: new ObjectId(ideasId) };
-    const result = await ideasCollection.findOne(query);
-    res.send(result);
-  } catch (err) {
-    res.status(500).send({ error: "Failed to fetch data" });
-  }
-});
-
-// ==================== COMMENTS COLLECTION CRUD ====================
-
-
-// POST: Add a comment
-app.post("/comments", async (req, res) => {
-  const comment = req.body;
-
-  const result = await commentsCollection.insertOne(comment);
-  res.send(result);
-});
-
-// get
-app.get("/comments/:ideaCardId", async (req, res) => {
-  const {ideaCardId} = req.query;
-  console.log(ideaCardId)
-
-  let query = {};
-
-  if (ideaCardId) {
-    query = { ideaCardId };
-  }
-
-  const result = await commentsCollection.find(query).toArray();
-  res.send(result);
-});
-
-// Base routes
-app.get("/", (req, res) => {
-  res.send("API is working");
-});
-
-// 3. Start listening inside or at the end of the initialization function
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-});
+startServer();
