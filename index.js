@@ -67,17 +67,18 @@ async function startServer() {
     // CONNECT MONGODB
     await client.connect();
 
-    console.log("MongoDB connected successfully!");
+    // console.log("MongoDB connected successfully!");
 
     const db = client.db("ideaVaultDB9");
 
     const ideasCollection = db.collection("ideasAll");
     const commentsCollection = db.collection("comments");
     const usersCollection = db.collection("users");
+    const contentsCollection = db.collection("contents");
 
     // ================= ROUTES =================
 
-    app.get("/", (req, res) => {
+    app.get("/", verifyToken, (req, res) => {
       res.send("API is working");
     });
 
@@ -86,7 +87,7 @@ async function startServer() {
     app.get("/ideasAll", async (req, res) => {
       try {
         const { search, category } = req.query;
-        console.log(search, category, "search and category");
+        // console.log(search, category, "search and category");
 
         let query = {};
 
@@ -103,11 +104,11 @@ async function startServer() {
         }
 
 
-        console.log(query, "query");
+        // console.log(query, "query");
         const result = await ideasCollection.find(query).toArray();
         res.json(result);
       } catch (err) {
-        console.error(err);
+        // console.error(err);
         res.status(500).send({
           error: "Failed to fetch ideas",
         });
@@ -116,7 +117,7 @@ async function startServer() {
 
     // ================= POST IDEA =================
 
-    app.post("/ideasAll", async (req, res) => {
+    app.post("/ideasAll", verifyToken, async (req, res) => {
       try {
         const ideasData = req.body;
 
@@ -124,8 +125,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to add idea",
         });
@@ -134,7 +134,7 @@ async function startServer() {
 
     // ================= GET USER IDEAS =================
 
-    app.get("/ideasAll/:userId", async (req, res) => {
+    app.get("/ideasAll/:userId", verifyToken, async (req, res) => {
       try {
         const { userId } = req.params;
 
@@ -142,13 +142,13 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
+        // console.log(error);
       }
     });
 
     // ================= UPDATE IDEA =================
 
-    app.patch("/ideasAll/:id", async (req, res) => {
+    app.patch("/ideasAll/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
 
@@ -161,13 +161,13 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
+        // console.log(error);
       }
     });
 
     // ================= DELETE IDEA =================
 
-    app.delete("/ideasAll/:id", async (req, res) => {
+    app.delete("/ideasAll/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
 
@@ -177,7 +177,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
+        // console.log(error);
       }
     });
 
@@ -189,8 +189,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to fetch trending ideas",
         });
@@ -199,7 +198,7 @@ async function startServer() {
 
     // ================= SINGLE IDEA =================
 
-    app.get("/ideas/:ideasId", async (req, res) => {
+    app.get("/ideas/:ideasId", verifyToken, async (req, res) => {
       try {
         const { ideasId } = req.params;
 
@@ -209,8 +208,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to fetch single idea",
         });
@@ -222,13 +220,13 @@ async function startServer() {
     // ==================================================
 
     // Get All comments
-    app.get("/comments", async (req, res) => {
+    app.get("/comments", verifyToken, async (req, res) => {
       const result = await commentsCollection.find().toArray();
       res.send(result);
     });
 
     // GET COMMENTS BY ideaCardId
-    app.get("/comments/:ideaCardId", async (req, res) => {
+    app.get("/comments/:ideaCardId", verifyToken, async (req, res) => {
       try {
         const { ideaCardId } = req.params;
 
@@ -238,8 +236,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to fetch comments",
         });
@@ -247,7 +244,7 @@ async function startServer() {
     });
 
     // POST COMMENT
-    app.post("/comments", async (req, res) => {
+    app.post("/comments", verifyToken, async (req, res) => {
       try {
         const comment = req.body;
 
@@ -258,8 +255,7 @@ async function startServer() {
           insertedId: result.insertedId,
         });
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to add comment",
         });
@@ -268,7 +264,7 @@ async function startServer() {
 
     // Update comment
 
-    app.patch("/comments/:id", async (req, res) => {
+    app.patch("/comments/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const updatedComment = req.body;
       const result = await commentsCollection.updateOne(
@@ -279,7 +275,7 @@ async function startServer() {
     });
     // DELETE COMMENT
 
-    app.delete("/comments/:id", async (req, res) => {
+    app.delete("/comments/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
 
@@ -295,8 +291,7 @@ async function startServer() {
 
         res.send(result);
       } catch (error) {
-        console.log(error);
-
+        // console.log(error);
         res.status(500).send({
           error: "Failed to delete comment",
         });
@@ -304,7 +299,7 @@ async function startServer() {
     });
 
     // ================= Update Profile section =================
-    app.patch("/users/:userId", async (req, res) => {
+    app.patch("/users/:userId", verifyToken, async (req, res) => {
       const { userId } = req.params;
       const updatedProfile = req.body;
 
@@ -314,6 +309,23 @@ async function startServer() {
       );
 
       res.send(result);
+    });
+
+    // Route to store arbitrary content provided by the user
+    app.post("/storeContent", verifyToken, async (req, res) => {
+      try {
+        const content = req.body;
+
+        const result = await contentsCollection.insertOne(content);
+
+        res.status(201).json({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        // console.log(error);
+        res.status(500).send({ error: "Failed to store content" });
+      }
     });
 
     // ================= START SERVER =================
